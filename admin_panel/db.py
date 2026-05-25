@@ -230,16 +230,6 @@ async def get_user_info(telegram_id: int) -> Optional[dict]:
     }
 
 
-async def list_users(limit: int, offset: int) -> list[tuple[int, str, Optional[str], str]]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT telegram_id, name, username, created_at "
-            "FROM users ORDER BY id LIMIT ? OFFSET ?",
-            (limit, offset),
-        ) as cur:
-            return list(await cur.fetchall())
-
-
 async def count_users() -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT COUNT(*) FROM users") as cur:

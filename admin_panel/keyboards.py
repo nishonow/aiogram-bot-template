@@ -33,7 +33,7 @@ def cancel_kb() -> ReplyKeyboardMarkup:
 
 def broadcast_preview_kb() -> ReplyKeyboardMarkup:
     return _kb([
-        [T.BTN_BROADCAST_SEND, T.BTN_BROADCAST_TEST],
+        [T.BTN_BROADCAST_SEND],
         [T.BTN_BROADCAST_EDIT, T.BTN_CANCEL],
     ])
 
@@ -44,16 +44,8 @@ def broadcast_running_kb() -> ReplyKeyboardMarkup:
 
 def users_menu() -> ReplyKeyboardMarkup:
     return _kb([
-        [T.BTN_USER_FIND, T.BTN_USER_LIST],
+        [T.BTN_USER_FIND],
         [T.BTN_USER_BAN, T.BTN_USER_UNBAN],
-        [T.BTN_USER_EXPORT],
-        [T.BTN_BACK],
-    ])
-
-
-def users_list_kb() -> ReplyKeyboardMarkup:
-    return _kb([
-        [T.BTN_PAGE_PREV, T.BTN_PAGE_NEXT],
         [T.BTN_BACK],
     ])
 

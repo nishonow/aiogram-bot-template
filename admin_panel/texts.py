@@ -19,19 +19,13 @@ BTN_CONFIRM_NO = "❌ No"
 
 # ---- broadcast ----
 BTN_BROADCAST_SEND = "✅ Send to all"
-BTN_BROADCAST_TEST = "🧪 Send to me"
 BTN_BROADCAST_EDIT = "✏️ Edit"
 BTN_BROADCAST_STOP = "🛑 Stop broadcast"
 
 # ---- users ----
 BTN_USER_FIND = "🔍 Find user"
-BTN_USER_LIST = "📋 List users"
 BTN_USER_BAN = "🚫 Ban user"
 BTN_USER_UNBAN = "✅ Unban user"
-BTN_USER_EXPORT = "📥 Export CSV"
-BTN_PAGE_PREV = "⬅️ Prev"
-BTN_PAGE_NEXT = "Next ➡️"
-BTN_PAGE_INFO = "•"  # informational, no-op
 
 # ---- settings ----
 BTN_ADMINS = "👑 Admins"
@@ -69,7 +63,6 @@ MSG_MAINTENANCE_ON = (
 )
 MSG_BANNED = "🚫 You have been banned from using this bot."
 
-# ---- placeholders used in format() calls; keep names intact ----
 MSG_USER_INFO = (
     "<b>User info</b>\n\n"
     "ID: <code>{id}</code>\n"

@@ -10,7 +10,6 @@ class Admin(StatesGroup):
     broadcast_sending = State()
 
     users = State()
-    users_list = State()
     user_find_input = State()
     user_ban_input = State()
     user_unban_input = State()

@@ -12,14 +12,11 @@ DB backup, and more.
 - 📊 **Stats** — total users, new in 24h, bans, admins, channels, uptime, maintenance status
 - 📤 **Broadcast** any message type:
   - Live progress every 25 sends (sent / blocked / failed counters)
-  - 🧪 *Send to me* — sanity-test the message before going wide
   - ✏️ *Edit* before sending
   - 🛑 *Stop* mid-flight
 - 👥 **Users**:
   - 🔍 Find by Telegram ID (shows name, username, joined date, admin/ban status)
-  - 📋 Paginated list (10 per page)
   - 🚫 Ban / ✅ Unban (banned users are silently dropped by middleware)
-  - 📥 Export to CSV
 - ⚙️ **Settings**:
   - 👑 Add / remove runtime admins (super-admins from env can't be removed)
   - 📢 Add / remove required channels (with reachability check)
@@ -29,7 +26,8 @@ DB backup, and more.
   - 🗑 Clear users table
 
 All admin interactions use **reply keyboards + FSM states** — no inline
-buttons. `/cancel` walks back to the menu, `/exit` closes the panel.
+buttons, no slash commands. Every screen has a ⬅️ Back or ❌ Cancel
+button, and the main menu has a 🚪 Exit button to close the panel.
 
 ### Bot side
 - `/start` flow with optional "must join channel" gating
@@ -101,12 +99,22 @@ aiogram-bot-template/
 │
 ├── admin_panel/                  # drop-in admin module (use as-is in any bot)
 │   ├── __init__.py               # exports: admin_router, AdminMiddleware, init_admin_tables
-│   ├── handlers.py               # all admin handlers (reply-keyboard driven)
 │   ├── keyboards.py              # reply keyboards
 │   ├── states.py                 # FSM states
 │   ├── db.py                     # admins, banned, channels, settings, action_log tables
 │   ├── middleware.py             # AdminMiddleware
-│   └── texts.py                  # button labels & strings (edit to rebrand / localize)
+│   ├── texts.py                  # button labels & strings (edit to rebrand / localize)
+│   └── handlers/                 # one file per feature area
+│       ├── __init__.py           # combines all sub-routers
+│       ├── main_menu.py          # /admin entry, Exit
+│       ├── stats.py
+│       ├── broadcast.py
+│       ├── users.py              # find / ban / unban
+│       ├── settings.py           # settings root + backup + clear + log
+│       ├── admins.py             # add / remove runtime admins
+│       ├── channels.py           # add / remove required channels
+│       ├── maintenance.py        # maintenance toggle
+│       └── common.py             # shared helpers + fallback handler
 │
 ├── core/
 │   └── db.py                     # `users` table (the bot's own data layer)
