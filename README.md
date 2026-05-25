@@ -1,21 +1,41 @@
 # Aiogram Bot Template
 
-A clean, ready-to-fork starter for building Telegram bots with
-[aiogram](https://docs.aiogram.dev/) v3. It ships with a working admin panel
-(stats, broadcast, runtime admin management, required-channel gating) backed
-by SQLite, so you can focus on the features that make your bot yours.
+A ready-to-fork starter for Telegram bots built with
+[aiogram](https://docs.aiogram.dev/) v3. Comes with a **drop-in admin
+panel** any bot can plug into — reply-keyboard navigation, broadcast
+with live progress, user management, maintenance mode, action log,
+DB backup, and more.
 
 ## Features
 
-- **/start** flow with optional "must join channel" gating
-- **/admin** panel with inline keyboards:
-  - 📊 Stats (total users, new users in last 24h, uptime, admin count)
-  - 📤 Broadcast any message type, with live progress and blocked/failed counters
-  - ⚙️ Settings — add/remove runtime admins, add/remove required channels, clear users table
-- Permanent super-admins via env, plus runtime admins stored in SQLite
-- Async SQLite (`aiosqlite`) with auto-created schema
-- Admin-only middleware
-- Graceful shutdown, structured logging, configurable DB path
+### Admin panel (`admin_panel/` — drop-in for any aiogram bot)
+- 📊 **Stats** — total users, new in 24h, bans, admins, channels, uptime, maintenance status
+- 📤 **Broadcast** any message type:
+  - Live progress every 25 sends (sent / blocked / failed counters)
+  - 🧪 *Send to me* — sanity-test the message before going wide
+  - ✏️ *Edit* before sending
+  - 🛑 *Stop* mid-flight
+- 👥 **Users**:
+  - 🔍 Find by Telegram ID (shows name, username, joined date, admin/ban status)
+  - 📋 Paginated list (10 per page)
+  - 🚫 Ban / ✅ Unban (banned users are silently dropped by middleware)
+  - 📥 Export to CSV
+- ⚙️ **Settings**:
+  - 👑 Add / remove runtime admins (super-admins from env can't be removed)
+  - 📢 Add / remove required channels (with reachability check)
+  - 🔧 Maintenance mode toggle (non-admins get a "try later" message)
+  - 💾 Download DB backup as a file
+  - 📜 Action log (last 30 admin actions)
+  - 🗑 Clear users table
+
+All admin interactions use **reply keyboards + FSM states** — no inline
+buttons. `/cancel` walks back to the menu, `/exit` closes the panel.
+
+### Bot side
+- `/start` flow with optional "must join channel" gating
+- Sample feature (random fact) — replace with whatever your bot does
+- Banned-user and maintenance middlewares automatically apply to all
+  user-facing routers
 
 ## Quick start
 
@@ -36,12 +56,12 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# edit .env and fill in BOT_TOKEN and ADMINS
+# edit .env, fill in BOT_TOKEN and ADMINS
 
 python app.py
 ```
 
-Open Telegram, send `/start` to your bot, then `/admin` to access the panel.
+Open Telegram, send `/start`, then `/admin` to access the panel.
 
 ### Run with Docker
 
@@ -53,59 +73,97 @@ docker run --rm --env-file .env -v "$(pwd)/data:/app/data" \
 
 ## Configuration
 
-All configuration is read from environment variables (see `.env.example`):
-
 | Variable    | Required | Description                                                                 |
 |-------------|----------|-----------------------------------------------------------------------------|
 | `BOT_TOKEN` | yes      | Token from @BotFather                                                       |
-| `ADMINS`    | yes      | Comma-separated Telegram user IDs with permanent admin access               |
-| `DB_PATH`   | no       | Path to the SQLite file. Defaults to `bot.db`                               |
-| `LOG_LEVEL` | no       | `DEBUG`, `INFO`, `WARNING`, `ERROR`. Defaults to `INFO`                     |
+| `ADMINS`    | yes      | Comma-separated Telegram IDs of **super-admins** (can't be removed at runtime) |
+| `DB_PATH`   | no       | Path to SQLite file. Defaults to `bot.db`                                   |
+| `LOG_LEVEL` | no       | `DEBUG` / `INFO` / `WARNING` / `ERROR`. Defaults to `INFO`                  |
 
-`ADMINS` is comma-separated *without* brackets:
-
-```
-ADMINS=123456789,987654321
-```
+`ADMINS` format: `ADMINS=123456789,987654321` (no brackets).
 
 ## Required-channel gating
 
-In the admin panel, open **Settings → Add Channel** and send either
-`@your_channel_username` or the numeric channel ID (e.g. `-1001234567890`).
-The bot must be a member of the channel — otherwise it can't check
-membership. Users will be prompted to join before they can use the bot.
+In the admin panel: **Settings → Required channels → Add channel**.
+Provide `@your_channel_username` or the numeric channel ID
+(e.g. `-1001234567890`). The bot must be a member of the channel.
+Users will be prompted to join before they can use the bot.
 
 ## Project structure
 
 ```
 aiogram-bot-template/
-├── app.py                       # entrypoint
-├── config.py                    # env var loading + validation
+├── app.py                        # entrypoint — wires routers and middlewares
+├── config.py                     # env loading + validation
 ├── requirements.txt
 ├── Dockerfile
 ├── .env.example
+│
+├── admin_panel/                  # drop-in admin module (use as-is in any bot)
+│   ├── __init__.py               # exports: admin_router, AdminMiddleware, init_admin_tables
+│   ├── handlers.py               # all admin handlers (reply-keyboard driven)
+│   ├── keyboards.py              # reply keyboards
+│   ├── states.py                 # FSM states
+│   ├── db.py                     # admins, banned, channels, settings, action_log tables
+│   ├── middleware.py             # AdminMiddleware
+│   └── texts.py                  # button labels & strings (edit to rebrand / localize)
+│
 ├── core/
-│   ├── db.py                    # aiosqlite data layer
-│   └── keyboards.py             # all inline / reply keyboards
+│   └── db.py                     # `users` table (the bot's own data layer)
+│
 ├── handlers/
-│   ├── admin.py                 # /admin panel
-│   └── start.py                 # /start + sample feature
+│   └── start.py                  # /start, sample features — customize freely
+│
 ├── middlewares/
-│   └── admin_middleware.py      # admin-only gate for /admin router
+│   ├── ban_middleware.py         # drops events from banned users
+│   └── maintenance_middleware.py # blocks non-admins when maintenance is ON
+│
 └── utils/
-    ├── consts.py
-    └── helpers.py               # channel-membership helpers + sample data
+    ├── consts.py                 # BOT_START_TIME for uptime calc
+    └── helpers.py                # channel-join gating + sample fact data
 ```
+
+## Using the admin panel in your own bot
+
+The panel is self-contained. To drop it into another aiogram project:
+
+1. Copy the `admin_panel/` folder over.
+2. Make sure your bot has a `users` table with columns
+   `telegram_id INTEGER`, `name TEXT`, `username TEXT`, `created_at TIMESTAMP`,
+   or adapt the queries in `admin_panel/db.py` to your schema.
+3. Wire it in `app.py`:
+
+   ```python
+   from admin_panel import admin_router, AdminMiddleware, init_admin_tables
+
+   admin_router.message.middleware(AdminMiddleware())
+   dp.include_router(admin_router)
+   await init_admin_tables()
+   ```
+
+4. (Optional) Apply the user-facing middlewares to your routers:
+
+   ```python
+   from middlewares.ban_middleware import BanMiddleware
+   from middlewares.maintenance_middleware import MaintenanceMiddleware
+
+   user_router.message.middleware(BanMiddleware())
+   user_router.message.middleware(MaintenanceMiddleware())
+   ```
+
+5. Edit `admin_panel/texts.py` to rebrand button labels or translate the UI.
 
 ## Extending the template
 
-- **Add a feature handler:** create `handlers/your_feature.py` with a
-  `router = Router()`, import it in `handlers/__init__.py`, then
-  `dp.include_router(handlers.your_feature.router)` in `app.py`.
-- **Add a keyboard:** put it in `core/keyboards.py`. Use the
-  `admin:*` callback-data namespace if it's part of the admin panel.
-- **Add a table:** extend `core/db.py` — schema is created on startup
-  in `init_db()`.
+- **New user-facing feature:** add `handlers/feature_x.py` with a
+  `router = Router()`, import in `handlers/__init__.py`, then
+  `dp.include_router(handlers.feature_x.router)` in `app.py`.
+- **New admin feature:** extend `admin_panel/states.py` with a state,
+  `admin_panel/keyboards.py` with the buttons, and add handlers in
+  `admin_panel/handlers.py`. Or keep your custom admin handlers in a
+  separate router and include both.
+- **New DB table:** add `CREATE TABLE IF NOT EXISTS` in the relevant
+  `init_*` function so the schema is created at startup.
 
 ## License
 
