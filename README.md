@@ -25,9 +25,12 @@ DB backup, and more.
   - 📜 Action log (last 30 admin actions)
   - 🗑 Clear users table
 
-All admin interactions use **reply keyboards + FSM states** — no inline
-buttons, no slash commands. Every screen has a ⬅️ Back or ❌ Cancel
-button, and the main menu has a 🚪 Exit button to close the panel.
+Hybrid UI: **reply keyboards** for menu navigation (stay at the bottom
+of the chat); **inline buttons** for actions that update a specific
+message — stats refresh, maintenance toggle, clear-users confirm,
+broadcast preview / progress / stop, user ban/unban from find result.
+Every menu has a ⬅️ Back or ❌ Cancel button; the main menu has a
+🚪 Exit button. No slash commands.
 
 ### Bot side
 - `/start` flow with optional "must join channel" gating

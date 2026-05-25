@@ -1,10 +1,10 @@
-"""Statistics screen."""
+"""Statistics screen — inline Refresh + Close on the same message."""
 
 import time
 
 from aiogram import F, Router
-from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.exceptions import TelegramAPIError
+from aiogram.types import CallbackQuery, Message
 
 from admin_panel import keyboards as kb
 from admin_panel import texts as T
@@ -45,17 +45,23 @@ async def _stats_text() -> str:
 
 
 @router.message(Admin.main, F.text == T.BTN_STATS)
-async def open_stats(message: Message, state: FSMContext) -> None:
-    await state.set_state(Admin.stats)
-    await message.answer(await _stats_text(), reply_markup=kb.stats_kb(), parse_mode="HTML")
+async def open_stats(message: Message) -> None:
+    await message.answer(
+        await _stats_text(),
+        reply_markup=kb.stats_inline(),
+        parse_mode="HTML",
+    )
 
 
-@router.message(Admin.stats, F.text == T.BTN_REFRESH)
-async def refresh_stats(message: Message) -> None:
-    await message.answer(await _stats_text(), reply_markup=kb.stats_kb(), parse_mode="HTML")
-
-
-@router.message(Admin.stats, F.text == T.BTN_BACK)
-async def stats_back(message: Message, state: FSMContext) -> None:
-    await state.set_state(Admin.main)
-    await message.answer(T.TITLE_MAIN, reply_markup=kb.main_menu(), parse_mode="HTML")
+@router.callback_query(F.data == "admin:stats:refresh")
+async def refresh_stats(call: CallbackQuery) -> None:
+    try:
+        await call.message.edit_text(
+            await _stats_text(),
+            reply_markup=kb.stats_inline(),
+            parse_mode="HTML",
+        )
+        await call.answer("Refreshed")
+    except TelegramAPIError:
+        # content identical → "message is not modified"
+        await call.answer("Up to date")

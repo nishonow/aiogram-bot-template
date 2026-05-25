@@ -35,6 +35,7 @@ async def main() -> None:
 
     # Admin panel: gate the entire router behind AdminMiddleware
     admin_router.message.middleware(AdminMiddleware())
+    admin_router.callback_query.middleware(AdminMiddleware())
     dp.include_router(admin_router)
 
     # User-facing routers: drop banned users, block during maintenance

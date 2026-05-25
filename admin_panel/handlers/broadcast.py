@@ -1,4 +1,4 @@
-"""Broadcast flow: collect message → preview → send with live progress + stop button."""
+"""Broadcast flow: collect → preview (inline) → send with inline progress + Stop."""
 
 import asyncio
 import logging
@@ -6,7 +6,7 @@ import logging
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
 from admin_panel import keyboards as kb
 from admin_panel import texts as T
@@ -16,12 +16,14 @@ from admin_panel.states import Admin
 logger = logging.getLogger(__name__)
 router = Router(name="admin_broadcast")
 
-BROADCAST_DELAY = 0.05  # ~20 msg/s, safely under Telegram's limit
+BROADCAST_DELAY = 0.05  # ~20 msg/s, under Telegram's per-bot limit
 PROGRESS_UPDATE_EVERY = 25
 
-# admin_ids that requested broadcast cancellation
+# admin_ids that have requested broadcast cancellation
 _cancel_requests: set[int] = set()
 
+
+# ---------------- input ----------------
 
 @router.message(Admin.main, F.text == T.BTN_BROADCAST)
 async def broadcast_start(message: Message, state: FSMContext) -> None:
@@ -42,47 +44,62 @@ async def broadcast_input(message: Message, state: FSMContext) -> None:
         source_message_id=message.message_id,
     )
     await state.set_state(Admin.broadcast_preview)
-    await message.answer(T.TITLE_BROADCAST_PREVIEW, reply_markup=kb.broadcast_preview_kb())
+    await message.answer(
+        T.TITLE_BROADCAST_PREVIEW,
+        reply_markup=kb.broadcast_preview_inline(),
+    )
 
 
-@router.message(Admin.broadcast_preview, F.text == T.BTN_BROADCAST_EDIT)
-async def broadcast_edit(message: Message, state: FSMContext) -> None:
+# ---------------- preview (inline) ----------------
+
+@router.callback_query(F.data == "admin:bc:edit", Admin.broadcast_preview)
+async def broadcast_edit(call: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(Admin.broadcast_input)
-    await message.answer(T.TITLE_BROADCAST_PROMPT, reply_markup=kb.cancel_kb())
+    await call.message.edit_text(
+        "✏️ Send a new broadcast message.",
+        reply_markup=None,
+    )
+    await call.answer()
 
 
-@router.message(Admin.broadcast_preview, F.text == T.BTN_CANCEL)
-async def broadcast_preview_cancel(message: Message, state: FSMContext) -> None:
+@router.callback_query(F.data == "admin:bc:cancel", Admin.broadcast_preview)
+async def broadcast_cancel(call: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(Admin.main)
-    await message.answer(T.MSG_CANCELLED, reply_markup=kb.main_menu())
+    await call.message.edit_text("🚫 Broadcast cancelled.", reply_markup=None)
+    await call.message.answer(T.TITLE_MAIN, reply_markup=kb.main_menu(), parse_mode="HTML")
+    await call.answer()
 
 
-@router.message(Admin.broadcast_preview, F.text == T.BTN_BROADCAST_SEND)
-async def broadcast_send(message: Message, state: FSMContext, bot: Bot) -> None:
+@router.callback_query(F.data == "admin:bc:send", Admin.broadcast_preview)
+async def broadcast_send(call: CallbackQuery, state: FSMContext, bot: Bot) -> None:
     data = await state.get_data()
     src_chat = data.get("source_chat_id")
     src_msg = data.get("source_message_id")
+    await state.set_state(Admin.main)
+
     if not src_chat or not src_msg:
-        await message.answer("⚠️ Source message lost. Try again.", reply_markup=kb.main_menu())
-        await state.set_state(Admin.main)
+        await call.message.edit_text("⚠️ Source message lost. Try again.", reply_markup=None)
+        await call.message.answer(T.TITLE_MAIN, reply_markup=kb.main_menu(), parse_mode="HTML")
+        await call.answer()
         return
 
     user_ids = await get_user_ids()
     total = len(user_ids)
     if total == 0:
-        await message.answer("ℹ️ No users to broadcast to.", reply_markup=kb.main_menu())
-        await state.set_state(Admin.main)
+        await call.message.edit_text("ℹ️ No users to broadcast to.", reply_markup=None)
+        await call.message.answer(T.TITLE_MAIN, reply_markup=kb.main_menu(), parse_mode="HTML")
+        await call.answer()
         return
 
-    admin_id = message.from_user.id
+    admin_id = call.from_user.id
     _cancel_requests.discard(admin_id)
-    await state.set_state(Admin.broadcast_sending)
 
-    progress = await message.answer(
-        f"📤 Sending to {total} users…\n\nPress <b>Stop</b> to cancel mid-flight.",
-        reply_markup=kb.broadcast_running_kb(),
-        parse_mode="HTML",
+    # Switch the preview message into a live progress display with inline Stop.
+    await call.message.edit_text(
+        f"📤 Sending to {total} users…",
+        reply_markup=kb.broadcast_stop_inline(),
     )
+    await call.answer()
 
     sent = blocked = failed = 0
     cancelled = False
@@ -103,18 +120,19 @@ async def broadcast_send(message: Message, state: FSMContext, bot: Bot) -> None:
 
         if index % PROGRESS_UPDATE_EVERY == 0:
             try:
-                await progress.edit_text(
+                await call.message.edit_text(
                     f"📤 Broadcasting…\n\n"
                     f"Progress: {index}/{total}\n"
                     f"✅ Sent: {sent}\n"
                     f"🚫 Blocked: {blocked}\n"
-                    f"⚠️ Failed: {failed}"
+                    f"⚠️ Failed: {failed}",
+                    reply_markup=kb.broadcast_stop_inline(),
                 )
             except TelegramAPIError:
                 pass
         await asyncio.sleep(BROADCAST_DELAY)
 
-    status = "🛑 Cancelled" if cancelled else "✅ Complete"
+    status = "🛑 <b>Cancelled</b>" if cancelled else "✅ <b>Complete</b>"
     summary = (
         f"{status}\n\n"
         f"Recipients: <b>{total}</b>\n"
@@ -122,17 +140,21 @@ async def broadcast_send(message: Message, state: FSMContext, bot: Bot) -> None:
         f"🚫 Blocked: <b>{blocked}</b>\n"
         f"⚠️ Failed: <b>{failed}</b>"
     )
-    await message.answer(summary, reply_markup=kb.main_menu(), parse_mode="HTML")
+    try:
+        await call.message.edit_text(summary, reply_markup=None, parse_mode="HTML")
+    except TelegramAPIError:
+        await call.message.answer(summary, parse_mode="HTML")
+
+    await call.message.answer(T.TITLE_MAIN, reply_markup=kb.main_menu(), parse_mode="HTML")
     await log_action(
         admin_id,
         "broadcast",
         {"recipients": total, "sent": sent, "blocked": blocked,
          "failed": failed, "cancelled": cancelled},
     )
-    await state.set_state(Admin.main)
 
 
-@router.message(Admin.broadcast_sending, F.text == T.BTN_BROADCAST_STOP)
-async def broadcast_stop(message: Message) -> None:
-    _cancel_requests.add(message.from_user.id)
-    await message.answer("🛑 Stopping after the current send…")
+@router.callback_query(F.data == "admin:bc:stop")
+async def broadcast_stop(call: CallbackQuery) -> None:
+    _cancel_requests.add(call.from_user.id)
+    await call.answer("Stopping after the current send…", show_alert=False)

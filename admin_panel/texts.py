@@ -17,10 +17,19 @@ BTN_REFRESH = "🔄 Refresh"
 BTN_CONFIRM_YES = "✅ Yes"
 BTN_CONFIRM_NO = "❌ No"
 
-# ---- broadcast ----
+# ---- inline action buttons ----
+BTN_INLINE_REFRESH = "🔄 Refresh"
+BTN_INLINE_CLOSE = "✖️ Close"
+BTN_INLINE_YES = "✅ Yes"
+BTN_INLINE_NO = "❌ Cancel"
+BTN_MAINT_TURN_ON = "🟢 Turn ON"
+BTN_MAINT_TURN_OFF = "🔴 Turn OFF"
 BTN_BROADCAST_SEND = "✅ Send to all"
 BTN_BROADCAST_EDIT = "✏️ Edit"
-BTN_BROADCAST_STOP = "🛑 Stop broadcast"
+BTN_BROADCAST_CANCEL = "❌ Cancel"
+BTN_BROADCAST_STOP = "🛑 Stop"
+BTN_USER_BAN_INLINE = "🚫 Ban"
+BTN_USER_UNBAN_INLINE = "✅ Unban"
 
 # ---- users ----
 BTN_USER_FIND = "🔍 Find user"

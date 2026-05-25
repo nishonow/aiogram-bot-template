@@ -1,4 +1,4 @@
-"""Settings root menu + DB backup, clear users, action log."""
+"""Settings root menu + DB backup + clear-users (inline confirm) + action log."""
 
 import datetime
 import html
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import FSInputFile, Message
+from aiogram.types import CallbackQuery, FSInputFile, Message
 
 from admin_panel import keyboards as kb
 from admin_panel import texts as T
@@ -48,32 +48,25 @@ async def backup_db(message: Message, bot: Bot) -> None:
     await log_action(message.from_user.id, "db_backup")
 
 
-# ---- clear users (with confirm) ----
+# ---- clear users (inline confirm) ----
 
 @router.message(Admin.settings, F.text == T.BTN_CLEAR_USERS)
-async def clear_users_prompt(message: Message, state: FSMContext) -> None:
-    await state.set_state(Admin.clear_users_confirm)
+async def clear_users_prompt(message: Message) -> None:
     await message.answer(
         "⚠️ <b>Clear the users table?</b>\n\n"
         "This deletes every user. Admins, channels, and bans are kept. "
         "Cannot be undone.",
-        reply_markup=kb.confirm_kb(),
+        reply_markup=kb.clear_users_inline(),
         parse_mode="HTML",
     )
 
 
-@router.message(Admin.clear_users_confirm, F.text == T.BTN_CONFIRM_YES)
-async def clear_users_confirm(message: Message, state: FSMContext) -> None:
+@router.callback_query(F.data == "admin:clear:yes")
+async def clear_users_confirm(call: CallbackQuery) -> None:
     await clear_users()
-    await log_action(message.from_user.id, "clear_users")
-    await state.set_state(Admin.settings)
-    await message.answer("🗑 Users table cleared.", reply_markup=kb.settings_menu())
-
-
-@router.message(Admin.clear_users_confirm, F.text == T.BTN_CONFIRM_NO)
-async def clear_users_cancel(message: Message, state: FSMContext) -> None:
-    await state.set_state(Admin.settings)
-    await message.answer(T.MSG_CANCELLED, reply_markup=kb.settings_menu())
+    await log_action(call.from_user.id, "clear_users")
+    await call.message.edit_text("🗑 Users table cleared.")
+    await call.answer("Cleared")
 
 
 # ---- action log ----
