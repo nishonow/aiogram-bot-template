@@ -1,76 +1,116 @@
-# Aiogram Bot Core Template
+# Aiogram Bot Template
 
-This repository is a **template** for building Telegram bots with the Aiogram framework. It is designed for simplicity, scalability, and ease of use. You can quickly get started with this structure to focus on building bot features rather than setting up from scratch.
+A clean, ready-to-fork starter for building Telegram bots with
+[aiogram](https://docs.aiogram.dev/) v3. It ships with a working admin panel
+(stats, broadcast, runtime admin management, required-channel gating) backed
+by SQLite, so you can focus on the features that make your bot yours.
 
 ## Features
 
-- **Basic Bot Functions**: Includes handlers for basic commands like `/start` and admin functionalities using `/admin`.
-- **Modular Structure**: A well-organized folder system for scalability.
-- **Database Integration**: Includes SQLite to store user and admin data.
-- **Custom Keyboards**: Ready-to-use keyboards for user interaction.
+- **/start** flow with optional "must join channel" gating
+- **/admin** panel with inline keyboards:
+  - 📊 Stats (total users, new users in last 24h, uptime, admin count)
+  - 📤 Broadcast any message type, with live progress and blocked/failed counters
+  - ⚙️ Settings — add/remove runtime admins, add/remove required channels, clear users table
+- Permanent super-admins via env, plus runtime admins stored in SQLite
+- Async SQLite (`aiosqlite`) with auto-created schema
+- Admin-only middleware
+- Graceful shutdown, structured logging, configurable DB path
 
-
-## Installation
+## Quick start
 
 ### Prerequisites
-- Python 3.8 or higher
-- Telegram Bot Token (from [BotFather](https://core.telegram.org/bots#botfather))
+- Python 3.10+
+- A Telegram bot token from [@BotFather](https://t.me/BotFather)
+- Your Telegram numeric ID (get it from [@userinfobot](https://t.me/userinfobot))
 
 ### Steps
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/nishonow/aiogram-bot-core.git
-   ```
+```bash
+git clone https://github.com/nishonow/aiogram-bot-template.git
+cd aiogram-bot-template
 
-2. Install dependencies:
-    ```bash
-   pip install -r requirements.txt
-    ```
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-3. Configure the bot: Create .env and set your bot token and admin IDs:
-    ```bash
-    BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
-    ADMINS=[123456789, 987654321]
-    ```
+pip install -r requirements.txt
 
-4. Run the bot:
-    ```
-   python app.py
-   ```
+cp .env.example .env
+# edit .env and fill in BOT_TOKEN and ADMINS
 
-## Extending the Template
-
-- **Add Handlers:** Add new features in the `handlers/` folder and import them in `handlers/__init__.py`.
-
-- **Update Keyboards:** Modify or add new keyboard layouts in `core/keyboards.py`.
-
-- **Custom Utilities:** Add shared helper functions in `utils/`.
-
-
-## Project Structure
-
-```aiogram-bot-core/
-├── app.py
-├── config.py
-├── requirements.txt
-├── core/
-│   ├── __init__.py
-│   ├── db.py
-│   ├── keyboards.py
-├── handlers/
-│   ├── __init__.py
-│   ├── admin.py
-│   ├── start.py
-├── utils/
-│   ├── consts.py
-│   ├── helpers.py
-├── middlewares/
-│   ├── admin_middleware.py
-├── ── bot.db
+python app.py
 ```
+
+Open Telegram, send `/start` to your bot, then `/admin` to access the panel.
+
+### Run with Docker
+
+```bash
+docker build -t aiogram-bot .
+docker run --rm --env-file .env -v "$(pwd)/data:/app/data" \
+  -e DB_PATH=/app/data/bot.db aiogram-bot
+```
+
+## Configuration
+
+All configuration is read from environment variables (see `.env.example`):
+
+| Variable    | Required | Description                                                                 |
+|-------------|----------|-----------------------------------------------------------------------------|
+| `BOT_TOKEN` | yes      | Token from @BotFather                                                       |
+| `ADMINS`    | yes      | Comma-separated Telegram user IDs with permanent admin access               |
+| `DB_PATH`   | no       | Path to the SQLite file. Defaults to `bot.db`                               |
+| `LOG_LEVEL` | no       | `DEBUG`, `INFO`, `WARNING`, `ERROR`. Defaults to `INFO`                     |
+
+`ADMINS` is comma-separated *without* brackets:
+
+```
+ADMINS=123456789,987654321
+```
+
+## Required-channel gating
+
+In the admin panel, open **Settings → Add Channel** and send either
+`@your_channel_username` or the numeric channel ID (e.g. `-1001234567890`).
+The bot must be a member of the channel — otherwise it can't check
+membership. Users will be prompted to join before they can use the bot.
+
+## Project structure
+
+```
+aiogram-bot-template/
+├── app.py                       # entrypoint
+├── config.py                    # env var loading + validation
+├── requirements.txt
+├── Dockerfile
+├── .env.example
+├── core/
+│   ├── db.py                    # aiosqlite data layer
+│   └── keyboards.py             # all inline / reply keyboards
+├── handlers/
+│   ├── admin.py                 # /admin panel
+│   └── start.py                 # /start + sample feature
+├── middlewares/
+│   └── admin_middleware.py      # admin-only gate for /admin router
+└── utils/
+    ├── consts.py
+    └── helpers.py               # channel-membership helpers + sample data
+```
+
+## Extending the template
+
+- **Add a feature handler:** create `handlers/your_feature.py` with a
+  `router = Router()`, import it in `handlers/__init__.py`, then
+  `dp.include_router(handlers.your_feature.router)` in `app.py`.
+- **Add a keyboard:** put it in `core/keyboards.py`. Use the
+  `admin:*` callback-data namespace if it's part of the admin panel.
+- **Add a table:** extend `core/db.py` — schema is created on startup
+  in `init_db()`.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 ## Feedback
 
-If you have any questions or feedback, feel free to reach out on Telegram: [@nishonow](https://t.me/nishonow)
-
-If you want to create bots using this template, check out the GPT-based tool built on it: [AioGPT](https://chatgpt.com/g/g-692c524573f88191963a069eba90ae18-aiogpt-aiogram-helper)
+Questions or feedback: [@nishonow](https://t.me/nishonow) on Telegram.
